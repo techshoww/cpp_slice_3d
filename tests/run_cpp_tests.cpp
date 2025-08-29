@@ -54,7 +54,11 @@ int main() {
             }
             // 3. Slice first dim
             {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 1, 4, 0, -1, 0, -1);
+                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                           1, 4,
+                                                           0, static_cast<int>(test_case.dim1), // [:]
+                                                           0, static_cast<int>(test_case.dim2)  // [:]
+                );
                 std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_dim0_1to4.txt";
                 save_vector_to_file<DataType>(result, out_filename);
             }
@@ -66,13 +70,21 @@ int main() {
             }
             // 5. Edge case: Empty slice
             {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 2, 2, 0, -1, 0, -1);
+                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                           2, 2, // Empty on dim0
+                                                           0, static_cast<int>(test_case.dim1),
+                                                           0, static_cast<int>(test_case.dim2)
+                );
                 std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_empty.txt";
                 save_vector_to_file<DataType>(result, out_filename);
             }
             // 6. Edge case: Full slice
             {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 0, -1, 0, -1, 0, -1);
+                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                           0, static_cast<int>(test_case.dim0),
+                                                           0, static_cast<int>(test_case.dim1),
+                                                           0, static_cast<int>(test_case.dim2)
+                );
                 std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_full.txt";
                 save_vector_to_file<DataType>(result, out_filename);
             }
@@ -90,7 +102,11 @@ int main() {
             }
             // 2. Slice middle dim
             {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 0, -1, 2, 6, 0, -1);
+                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                           0, static_cast<int>(test_case.dim0), // [:]
+                                                           2, 6,
+                                                           0, static_cast<int>(test_case.dim2)  // [:]
+                );
                 std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_dim1_2to6.txt";
                 save_vector_to_file<DataType>(result, out_filename);
             }
@@ -114,6 +130,7 @@ int main() {
             }
             // 6. Edge case: Negative indices
             {
+                printf("Negative indices---------------------------------------\n");
                 auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, -2, -1, -3, -1, -4, -2);
                 std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_negative_indices.txt";
                 save_vector_to_file<DataType>(result, out_filename);
