@@ -17,3 +17,5 @@ my_project/
 ├── data/                         # Directory for test data (created by scripts)
 └── Makefile
 ```
+
+可以执行 `make test` 进行测试。  
