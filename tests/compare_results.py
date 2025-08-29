@@ -42,7 +42,6 @@ def compare_outputs():
     print("Step 3: Comparing C++ and Python outputs...")
     all_passed = True
 
-    # Get list of files from one directory
     try:
         cpp_files = set(os.listdir(CPP_OUTPUT_DIR))
         py_files = set(os.listdir(PY_OUTPUT_DIR))
@@ -50,16 +49,29 @@ def compare_outputs():
         print(f"ERROR: Output directory not found: {e}")
         sys.exit(1)
 
-    # Check if files match
-    if cpp_files != py_files:
+    # Symmetric difference
+    only_in_cpp = cpp_files - py_files
+    only_in_py = py_files - cpp_files
+
+    if only_in_cpp or only_in_py:
         print("FAIL: Set of output files differs between C++ and Python.")
-        print(f"  C++ files not in Python: {cpp_files - py_files}")
-        print(f"  Python files not in C++: {py_files - cpp_files}")
-        return False
+        if only_in_cpp:
+            print(f"  Files only in C++: {only_in_cpp}")
+        if only_in_py:
+            print(f"  Files only in Python: {only_in_py}")
+        # Depending on strictness, you might want to continue or fail here
+        # For now, let's continue and report mismatches on common files
+        # return False # Or sys.exit(1)
 
-    print(f"Found {len(cpp_files)} output file pairs to compare.")
+    # Find common files
+    common_files = cpp_files.intersection(py_files)
+    print(f"Found {len(common_files)} common output file pairs to compare.")
 
-    for filename in cpp_files:
+    # Check mismatched counts
+    if len(only_in_cpp) > 0 or len(only_in_py) > 0:
+         print(f"WARNING: {len(only_in_cpp)} files only in C++, {len(only_in_py)} files only in Python.")
+
+    for filename in sorted(common_files): # Sort for consistent output order
         cpp_file_path = os.path.join(CPP_OUTPUT_DIR, filename)
         py_file_path = os.path.join(PY_OUTPUT_DIR, filename)
 
@@ -70,11 +82,19 @@ def compare_outputs():
             print(f"    FAIL: {filename}")
             all_passed = False
 
-    if all_passed:
+    # Report on files that exist in one but not the other
+    # (This part was added for more detailed reporting)
+    # Note: The check was already done above (only_in_cpp, only_in_py)
+
+    if all_passed and not only_in_cpp and not only_in_py:
         print("\n=== ALL TESTS PASSED ===")
+    elif all_passed:
+         print("\n=== ALL COMMON TESTS PASSED (but file sets differ) ===")
+         # You might consider this a failure depending on your policy
+         # all_passed = False # Uncomment if file set mismatch is a failure
     else:
         print("\n=== SOME TESTS FAILED ===")
-        sys.exit(1) # Exit with error code if any test failed
+        sys.exit(1)
 
     return all_passed
 

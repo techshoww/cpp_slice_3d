@@ -1,143 +1,171 @@
 // tests/run_cpp_tests.cpp
-#include "../src/slice_3d.h" // This includes slice_3d.tpp, which has save_vector_to_file
+#include "../src/slice_3d.h"
 #include <iostream>
 #include <vector>
 #include <string>
-#include <filesystem> // C++17
+#include <filesystem>
+#include <algorithm> // for std::min, std::max
 
 namespace fs = std::filesystem;
 
 const std::string DATA_DIR = "./data";
 const std::string OUTPUT_DIR = "./data/cpp_outputs";
 
-// Define the same test cases as in Python
+// --- Define Test Cases (MUST match Python) ---
 struct TestCase {
     std::string name;
     size_t dim0, dim1, dim2;
-    std::string dtype_str; // Not used in logic now, but kept for info
+    std::string dtype_str; // For identification, not used in logic
 };
 
-std::vector<TestCase> test_cases = {
+const std::vector<TestCase> test_cases = {
     {"case1_float_small", 5, 4, 6, "float32"},
     {"case2_int_medium", 10, 8, 12, "int32"},
-    {"case3_double_large", 20, 15, 25, "float64"}
+    {"case3_double_large", 20, 15, 25, "float64"},
+    {"case4_float_edge_small_dims", 1, 1, 5, "float32"},
+    {"case5_int_edge_unit_dim1", 3, 1, 4, "int32"},
+    {"case6_double_edge_unit_dim2", 2, 5, 1, "float64"},
+    {"case7_int_edge_large_dim0", 50, 3, 2, "int32"},
+    {"case8_float_mixed_types", 6, 7, 8, "float32"},
 };
 
-// --- Step 2: Run C++ slicing tests ---
+template<typename T>
+void run_single_test_case(const TestCase& test_case) {
+    std::cout << "  - Running C++ tests for " << test_case.name << "...\n";
+    std::string data_filename = DATA_DIR + "/" + test_case.name + "_data.txt";
+    
+    try {
+        auto data = load_vector_from_file<T>(data_filename);
+        
+        // --- Define All Test Operations (MUST match Python exactly) ---
+        // The logic and file names must be identical to run_python_tests.py
+        
+        // Basic and Common Patterns
+        {
+            auto result = slice_3d_last_dim_from<T>(data, test_case.dim0, test_case.dim1, test_case.dim2, 2);
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_dim2_from2.txt");
+        }
+        {
+            auto result = slice_3d_last_dim_last_n<T>(data, test_case.dim0, test_case.dim1, test_case.dim2, 3);
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_dim2_last3.txt");
+        }
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                1, 4, 0, static_cast<int>(test_case.dim1), 0, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_dim0_1to4.txt");
+        }
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2, 1, 3, 1, 3, 1, 4);
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_multidim_13_13_14.txt");
+        }
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                2, 2, 0, static_cast<int>(test_case.dim1), 0, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_empty.txt");
+        }
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                0, static_cast<int>(test_case.dim0),
+                                                0, static_cast<int>(test_case.dim1),
+                                                0, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_full.txt");
+        }
+        {
+             auto result = slice_3d_last_dim_range<T>(data, test_case.dim0, test_case.dim1, test_case.dim2, 1, 4);
+             save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_dim2_range_1to4.txt");
+        }
+
+        // Comprehensive Patterns
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                3, 1, 0, static_cast<int>(test_case.dim1), 0, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_start_gt_stop_empty.txt");
+        }
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                1000, 1001, 0, static_cast<int>(test_case.dim1), 0, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_large_start_clipped.txt");
+        }
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                0, static_cast<int>(test_case.dim0), 2, 6, 0, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_dim1_2to6.txt");
+        }
+        {
+             auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                1, 5, 0, static_cast<int>(test_case.dim1), 0, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_dim0_1to5.txt");
+        }
+        {
+            int end0 = std::min(3, static_cast<int>(test_case.dim0));
+            int end1 = std::min(2, static_cast<int>(test_case.dim1));
+            int end2 = std::min(3, static_cast<int>(test_case.dim2));
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                0, end0, 0, end1, 0, end2);
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_all_dims_head.txt");
+        }
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                -1, static_cast<int>(test_case.dim0),
+                                                0, static_cast<int>(test_case.dim1),
+                                                -1, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_negative_indices_last.txt");
+        }
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                0, static_cast<int>(test_case.dim0),
+                                                1, static_cast<int>(test_case.dim1),
+                                                0, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_stop_eq_dim.txt");
+        }
+
+        // Negative Indices (Critical ones)
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2, -2, -1, -3, -1, -4, -2);
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_negative_indices.txt");
+        }
+        {
+             auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                -2, static_cast<int>(test_case.dim0),
+                                                -1, static_cast<int>(test_case.dim1),
+                                                -3, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_negative_indices_tail.txt");
+        }
+
+        // Complex / Specific
+        {
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2, 1, 2, 1, 2, 1, 2);
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_single_element.txt");
+        }
+        // Complex Tail Slice
+        {
+            int s0 = std::max(0, static_cast<int>(test_case.dim0) - 3);
+            int s1 = std::max(0, static_cast<int>(test_case.dim1) - 2);
+            int s2 = std::max(0, static_cast<int>(test_case.dim2) - 4);
+            auto result = slice_3d_optimized<T>(data, test_case.dim0, test_case.dim1, test_case.dim2,
+                                                s0, static_cast<int>(test_case.dim0),
+                                                s1, static_cast<int>(test_case.dim1),
+                                                s2, static_cast<int>(test_case.dim2));
+            save_vector_to_file<T>(result, OUTPUT_DIR + "/" + test_case.name + "_py_complex_multidim_tail.txt");
+        }
+
+    } catch (const std::exception& e) {
+        std::cerr << "    ERROR during C++ test for " << test_case.name << ": " << e.what() << "\n";
+    }
+}
+
+
 int main() {
     std::cout << "Step 2: Running C++ slicing tests...\n";
     fs::create_directories(OUTPUT_DIR);
 
     for (const auto& test_case : test_cases) {
-        std::cout << "  - Processing " << test_case.name << "...\n";
-        std::string data_filename = DATA_DIR + "/" + test_case.name + "_data.txt";
-
-        // --- Load and process data based on case name ---
-        if (test_case.name == "case1_float_small" || test_case.name == "case3_double_large") {
-            // Assuming template functions handle float/double correctly.
-            // For file loading, using float is generally fine.
-            using DataType = float;
-            auto data = load_vector_from_file<DataType>(data_filename); // Use the one from slice_3d.tpp
-
-            // --- Define slicing operations matching Python for float/double cases ---
-            // 1. Slice last dim from index
-            {
-                auto result = slice_3d_last_dim_from<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 2);
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_dim2_from2.txt";
-                save_vector_to_file<DataType>(result, out_filename); // Use the one from slice_3d.tpp
-            }
-            // 2. Slice last dim last N
-            {
-                auto result = slice_3d_last_dim_last_n<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 3);
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_dim2_last3.txt";
-                save_vector_to_file<DataType>(result, out_filename);
-            }
-            // 3. Slice first dim
-            {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2,
-                                                           1, 4,
-                                                           0, static_cast<int>(test_case.dim1), // [:]
-                                                           0, static_cast<int>(test_case.dim2)  // [:]
-                );
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_dim0_1to4.txt";
-                save_vector_to_file<DataType>(result, out_filename);
-            }
-            // 4. Multi-dim slice
-            {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 1, 3, 1, 3, 1, 4);
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_multidim_13_13_14.txt";
-                save_vector_to_file<DataType>(result, out_filename);
-            }
-            // 5. Edge case: Empty slice
-            {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2,
-                                                           2, 2, // Empty on dim0
-                                                           0, static_cast<int>(test_case.dim1),
-                                                           0, static_cast<int>(test_case.dim2)
-                );
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_empty.txt";
-                save_vector_to_file<DataType>(result, out_filename);
-            }
-            // 6. Edge case: Full slice
-            {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2,
-                                                           0, static_cast<int>(test_case.dim0),
-                                                           0, static_cast<int>(test_case.dim1),
-                                                           0, static_cast<int>(test_case.dim2)
-                );
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_full.txt";
-                save_vector_to_file<DataType>(result, out_filename);
-            }
-
-        } else if (test_case.name == "case2_int_medium") {
-            using DataType = int;
-            auto data = load_vector_from_file<DataType>(data_filename); // Use the one from slice_3d.tpp
-
-            // --- Define slicing operations matching Python for int case ---
-            // 1. Slice last dim from index
-            {
-                auto result = slice_3d_last_dim_from<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 1);
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_dim2_from1.txt";
-                save_vector_to_file<DataType>(result, out_filename); // Use the one from slice_3d.tpp
-            }
-            // 2. Slice middle dim
-            {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2,
-                                                           0, static_cast<int>(test_case.dim0), // [:]
-                                                           2, 6,
-                                                           0, static_cast<int>(test_case.dim2)  // [:]
-                );
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_dim1_2to6.txt";
-                save_vector_to_file<DataType>(result, out_filename);
-            }
-            // 3. Slice last dim range
-            {
-                auto result = slice_3d_last_dim_range<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 3, 5);
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_dim2_3to5.txt";
-                save_vector_to_file<DataType>(result, out_filename);
-            }
-            // 4. Multi-dim slice
-            {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 0, 2, 1, 4, 2, 8);
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_multidim_02_14_28.txt";
-                save_vector_to_file<DataType>(result, out_filename);
-            }
-            // 5. Edge case: Single element
-            {
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, 1, 2, 1, 2, 1, 2);
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_single_element.txt";
-                save_vector_to_file<DataType>(result, out_filename);
-            }
-            // 6. Edge case: Negative indices
-            {
-                printf("Negative indices---------------------------------------\n");
-                auto result = slice_3d_optimized<DataType>(data, test_case.dim0, test_case.dim1, test_case.dim2, -2, -1, -3, -1, -4, -2);
-                std::string out_filename = OUTPUT_DIR + "/" + test_case.name + "_negative_indices.txt";
-                save_vector_to_file<DataType>(result, out_filename);
-            }
-
+        if (test_case.name.find("float") != std::string::npos || test_case.name.find("double") != std::string::npos) {
+            run_single_test_case<float>(test_case);
+        } else if (test_case.name.find("int") != std::string::npos) {
+            run_single_test_case<int>(test_case);
         } else {
-            std::cerr << "  - WARNING: Unsupported test case name for C++ test: " << test_case.name << "\n";
+            std::cerr << "  - WARNING: Unknown type for test case: " << test_case.name << "\n";
         }
     }
 

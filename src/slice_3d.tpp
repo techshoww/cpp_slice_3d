@@ -60,19 +60,27 @@ slice_3d_optimized(const std::vector<T>& data_1d,
     // --- Calculate Final Slice Boundaries ---
     // Ensure start <= stop (handles user errors like [5:3] and empty slices like [3:3])
     // Python slicing returns an empty list if start >= stop.
-    const size_t final_start0 = std::min(norm_start0, norm_stop0);
-    const size_t final_stop0 = std::max(norm_start0, norm_stop0); // Ensure stop >= start
+    // const size_t final_start0 = std::min(norm_start0, norm_stop0);
+    // const size_t final_stop0 = std::max(norm_start0, norm_stop0); // Ensure stop >= start
 
-    const size_t final_start1 = std::min(norm_start1, norm_stop1);
-    const size_t final_stop1 = std::max(norm_start1, norm_stop1); // Ensure stop >= start
+    // const size_t final_start1 = std::min(norm_start1, norm_stop1);
+    // const size_t final_stop1 = std::max(norm_start1, norm_stop1); // Ensure stop >= start
 
-    const size_t final_start2 = std::min(norm_start2, norm_stop2);
-    const size_t final_stop2 = std::max(norm_start2, norm_stop2); // Ensure stop >= start
+    // const size_t final_start2 = std::min(norm_start2, norm_stop2);
+    // const size_t final_stop2 = std::max(norm_start2, norm_stop2); // Ensure stop >= start
 
     // --- Calculate Effective Slice Lengths ---
-    const size_t slice_len0 = final_stop0 - final_start0;
-    const size_t slice_len1 = final_stop1 - final_start1;
-    const size_t slice_len2 = final_stop2 - final_start2;
+    const size_t final_start0 = norm_start0;
+    const size_t final_stop0 = norm_stop0;
+    const size_t slice_len0 = (final_start0 < final_stop0) ? (final_stop0 - final_start0) : 0;
+
+    const size_t final_start1 = norm_start1;
+    const size_t final_stop1 = norm_stop1;
+    const size_t slice_len1 = (final_start1 < final_stop1) ? (final_stop1 - final_start1) : 0;
+
+    const size_t final_start2 = norm_start2;
+    const size_t final_stop2 = norm_stop2;
+    const size_t slice_len2 = (final_start2 < final_stop2) ? (final_stop2 - final_start2) : 0;
 
     // --- Handle Empty Result ---
     if (slice_len0 == 0 || slice_len1 == 0 || slice_len2 == 0) {
